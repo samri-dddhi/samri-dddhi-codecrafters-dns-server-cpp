@@ -42,7 +42,7 @@ int main() {
     return 1;
   }
   int bytesRead;
-  char buffer[512];
+  unsigned char buffer[512];
   socklen_t clientAddrLen = sizeof(clientAddress);
   while (true) {
     // Receive data
@@ -56,13 +56,25 @@ int main() {
     buffer[bytesRead] = '\0';
     std::cout << "Received " << bytesRead << " bytes: " << buffer << std::endl;
    
-    char response[12] = {0};
+    unsigned char response[512] = {0};
     uint16_t packet_id = htons(1234);
     uint8_t flags = 1 << 7;
+    uint16_t qdcount = htons(1);
     std::memcpy(response, &packet_id, sizeof(packet_id));
     std::memcpy(response + 2, &flags, sizeof(flags));
+    std::memcpy(response + 4, &qdcount, sizeof(qdcount));
     // Send response
-    if (sendto(udpSocket, response, sizeof(response), 0,
+    size_t response_length = 12;
+    for (; buffer[response_length] != 0; ++response_length) {
+      response[response_length] = buffer[response_length];
+      std::cout << "Response byte " << response_length << ": "
+                << response[response_length] << std::endl;
+    }
+    ++response_length;
+    for (size_t i = 0; i < 4; ++i, ++response_length) {
+      response[response_length] = buffer[response_length];
+    }
+    if (sendto(udpSocket, response, response_length, 0,
                reinterpret_cast<struct sockaddr *>(&clientAddress),
                sizeof(clientAddress)) == -1) {
       perror("Failed to send response");
