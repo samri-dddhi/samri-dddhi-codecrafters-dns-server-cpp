@@ -55,7 +55,7 @@ int main() {
     }
     buffer[bytesRead] = '\0';
     std::cout << "Received " << bytesRead << " bytes: " << buffer << std::endl;
-    char response[0]= {'\0'};
+   
     char response[12] = {0};
     uint16_t packet_id = htons(1234);
     uint8_t flags = 1 << 7;
