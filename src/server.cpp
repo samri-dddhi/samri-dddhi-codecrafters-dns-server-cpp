@@ -45,7 +45,10 @@ DNS_message make_message()
     message.header.NSCOUNT = htons(0);
     message.header.ARCOUNT = htons(0);
     string s = "codecrafters";
-Expand 5 lines
+    message.question.QNAME += char(s.size());
+    message.question.QNAME += s;
+    s = "io";
+    message.question.QNAME += char(s.size());
     message.question.QNAME += s;
     message.question.QTYPE = htons(1);
     message.question.QCLASS = htons(1);
@@ -134,4 +137,3 @@ int main()
     close(udpSocket);
     return 0;
 }
-\ No newline at end of file
