@@ -163,14 +163,30 @@ struct Question
         return offset;
     }
     // Deserialize a question from a buffer, offset is updated in place
-    static Question deserialize(const char *buffer, int &offset)
+    static Question deserialize(const char *buffer, int &offset, int messageStart = 0)
     {
         Question q;
         // Parse domain name
         std::string name;
+        int labelOffset = offset;
+        bool compressedNameUsed = false;
         while (true)
         {
-            uint8_t labelLength = (uint8_t)buffer[offset++];
+            uint8_t labelLength = (uint8_t)buffer[labelOffset++];
+            // Check if this is a pointer (compression)
+            if ((labelLength & 0xC0) == 0xC0) {
+                // It's a pointer - the offset is the lower 14 bits of the 2-byte pointer
+                if (!compressedNameUsed) {
+                    // Only advance offset once - the first time we encounter a pointer
+                    offset = labelOffset + 1; // Skip past the 2-byte pointer
+                    compressedNameUsed = true;
+                }
+                
+                // Calculate the pointer offset (lower 14 bits)
+                uint16_t pointerOffset = ((labelLength & 0x3F) << 8) | (uint8_t)buffer[labelOffset];
+                labelOffset = pointerOffset + messageStart;
+                continue;  // Go to the new position and continue parsing
+            }
             // If length is 0, we've reached the end of the domain name
             if (labelLength == 0)
                 break;
@@ -180,8 +196,11 @@ struct Question
             // Copy the characters for this label
             for (int j = 0; j < labelLength; j++)
             {
-                name += buffer[offset++];
+                name += buffer[labelOffset++];
             }
+        }
+        if (!compressedNameUsed) {
+            offset = labelOffset;
         }
         q.name = name;
         // Parse QTYPE (2 bytes)
@@ -278,6 +297,7 @@ public:
     static DNSMessage deserialize(const char *buffer)
     {
         DNSMessage msg;
+        int messageStart = 0;
         // Bytes 0-1: ID (16 bits)
         msg.id = ((uint8_t)buffer[0] << 8) | (uint8_t)buffer[1];
         // Byte 2: QR(1) | OPCODE(4) | AA(1) | TC(1) | RD(1)
@@ -303,7 +323,7 @@ public:
         int offset = 12;
         for (int i = 0; i < msg.QDCOUNT; i++)
         {
-            msg.questions.push_back(Question::deserialize(buffer, offset));
+            msg.questions.push_back(Question::deserialize(buffer, offset, messageStart));
         }
         for (const auto& question : msg.questions) {
             msg.answers.push_back(dns_store.getRecord(question.name));
