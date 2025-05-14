@@ -63,7 +63,8 @@ int main() {
        // Create an empty response
        char response[1] = { '\0' };
        char response[12] = {0};
-       uint16_t packet_id=htons(1234);
+     
+       uint16_t packet_id= htons(1234);
        uint8_t flags = 1 << 7;
        std::memcpy(response, &packet_id, sizeof(packet_id));
          std::memcpy(response + 2, &flags, sizeof(flags));
